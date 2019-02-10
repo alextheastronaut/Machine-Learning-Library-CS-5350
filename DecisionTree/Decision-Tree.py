@@ -61,15 +61,15 @@ def id3(data, attributes, depth, max_depth, information_gain_method):
     node['attribute'] = best_attr_key
     best_attr_vals = attributes[best_attr_key]
     del attributes[best_attr_key]
-    node['children'] = dict()
+    node['values'] = dict()
     
     for value in best_attr_vals:
         data_subset = [sample for sample in data if sample[best_attr_key] == value]
 
         if (len(data_subset) == 0):
-            node['children'][value] = {'label': max(label_pdf, key=label_pdf.get)}
+            node['values'][value] = {'label': max(label_pdf, key=label_pdf.get)}
         else:
-            node['children'][value] = id3(data_subset, attributes, depth + 1, max_depth, information_gain_method)
+            node['values'][value] = id3(data_subset, attributes, depth + 1, max_depth, information_gain_method)
 
     return node
 
@@ -143,9 +143,9 @@ def print_tree(root):
     while len(q) > 0:
         curr = q.pop(0)
 
-        if 'children' in curr:
-            for child in curr['children']:
-                q.append(curr['children'][child])
+        if 'values' in curr:
+            for child in curr['values']:
+                q.append(curr['values'][child])
 
         to_print = ''
         for key in curr:
@@ -153,10 +153,47 @@ def print_tree(root):
         print(to_print + '\t')
 
 
+def test_tree_accuracy(test_data, root):
+    if len(test_data) == 0:
+        return 1
+
+    num_correct_prediction = 0
+    for sample in test_data:
+
+        curr = root
+        while 'label' not in curr:
+            curr_att = curr['attribute']
+            sample_att_val = sample[curr_att]
+            curr = curr['values'][sample_att_val]
+
+        predicted_label = curr['label']
+
+        if predicted_label == sample['label']:
+            num_correct_prediction += 1
+
+    return num_correct_prediction / len(test_data)
+
+
+def find_accuracy_different_max_depths(training_data, test_data, attributes, max_depth):
+
+    gain_methods = [calc_entropy, calc_majority_error, calc_gini]
+    for x in range(1, max_depth + 1):
+        print("depth " + str(x))
+        for gain_method in gain_methods:
+            att_copy = attributes.copy()
+            root = id3(training_data, att_copy, 0, x, gain_method)
+            acc = test_tree_accuracy(test_data, root)
+            print(root)
+            print(acc)
+
+        print()
+
+
 def main():
-    attributes, ordered_atts = read_txt_set_attr("TestTennis/playtennislabels.txt")
-    data = read_csv("TestTennis/playtennis.csv", ordered_atts)
-    root = id3(data, attributes, 0, 50, calc_majority_error)
-    print_tree(root)
+    attributes, ordered_atts = read_txt_set_attr("car/data-desc-readable.txt")
+    training_data = read_csv("car/test.csv", ordered_atts)
+    test_data = read_csv("car/train.csv", ordered_atts)
+    #root = id3(training_data, attributes, 0, 200, calc_entropy)
+    find_accuracy_different_max_depths(training_data, test_data, attributes, 6)
 
 if __name__ == "__main__": main()
