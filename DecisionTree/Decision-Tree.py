@@ -19,7 +19,24 @@ def process_numeric_data(data, numeric_atts):
     return data
 
 
-def read_csv(CSVfile, ordered_atts, numeric_atts):
+def fill_unknown_values(data, atts_with_unknown_val):
+
+    most_common_val_of_att = dict()
+
+    for att in atts_with_unknown_val:
+        att_count = count_values_of_attribute_in_data(data, att)
+        del att_count['unknown']
+        most_common_val_of_att[att] = max(att_count, key=att_count.get)
+
+    for sample in data:
+        for att in atts_with_unknown_val:
+            if sample[att] == 'unknown':
+                sample[att] = most_common_val_of_att[att]
+
+    return data
+
+
+def read_csv(CSVfile, ordered_atts, numeric_atts, atts_with_unknown_val, fill_unknown):
     with open(CSVfile, 'r') as f:
         data = list()
 
@@ -39,6 +56,10 @@ def read_csv(CSVfile, ordered_atts, numeric_atts):
             sample_to_add['label'] = sample[len(sample) - 1]
             data.append(sample_to_add)
 
+        if fill_unknown:
+            #Fills unknown values with its attribute's most common value
+            data = fill_unknown_values(data, atts_with_unknown_val)
+
         #Converts continuous data to binary based on attribute's median in set
         data = process_numeric_data(data, numeric_atts)
 
@@ -50,6 +71,7 @@ def read_txt_set_attr(TXTfile):
         attributes = dict()
         ordered_atts = list()
         numeric_atts = dict()
+        atts_with_unknown_val = set()
 
         for line in f:
             att_vals = line.split()
@@ -64,13 +86,19 @@ def read_txt_set_attr(TXTfile):
                 numeric_atts[att_name] = list()
             else:
                 for x in range(1, len(att_vals)):
-                    attributes[att_name].add(att_vals[x])
+                    value = att_vals[x]
 
-        return attributes, ordered_atts, numeric_atts
+                    if value == 'unknown':
+                        atts_with_unknown_val.add(att_name)
+                        continue
+
+                    attributes[att_name].add(value)
+
+        return attributes, ordered_atts, numeric_atts, atts_with_unknown_val
 
 
 def id3(data, attributes, depth, max_depth, information_gain_method):
-    label_pdf = count_labels_in_data(data)
+    label_pdf = count_values_of_attribute_in_data(data, 'label')
 
     node = dict()
 
@@ -88,7 +116,8 @@ def id3(data, attributes, depth, max_depth, information_gain_method):
 
     node['attribute'] = best_attr_key
     best_attr_vals = attributes[best_attr_key]
-    del attributes[best_attr_key]
+    attributes_copy = attributes.copy()
+    del attributes_copy[best_attr_key]
     node['values'] = dict()
     
     for value in best_attr_vals:
@@ -97,7 +126,7 @@ def id3(data, attributes, depth, max_depth, information_gain_method):
         if len(data_subset) == 0:
             node['values'][value] = {'label': max(label_pdf, key=label_pdf.get)}
         else:
-            node['values'][value] = id3(data_subset, attributes, depth + 1, max_depth, information_gain_method)
+            node['values'][value] = id3(data_subset, attributes_copy, depth + 1, max_depth, information_gain_method)
 
     return node
 
@@ -109,7 +138,7 @@ def find_best_att(data, attributes, tot_gain, information_gain_method):
         gain = tot_gain
         for value in attributes[att]:
             data_subset = [sample for sample in data if sample[att] == value]
-            label_pdf = count_labels_in_data(data_subset)
+            label_pdf = count_values_of_attribute_in_data(data_subset, 'label')
 
             weight = len(data_subset) / len(data)
             entropy = information_gain_method(label_pdf, len(data_subset))
@@ -154,15 +183,15 @@ def calc_majority_error(labels_pdf, set_size):
     return (set_size - max)/set_size
 
 
-def count_labels_in_data(data):
-    label_counter = dict()
+def count_values_of_attribute_in_data(data, attribute):
+    value_counter = dict()
     for sample in data:
-        label = sample['label']
-        if label not in label_counter:
-            label_counter[label] = 0
-        label_counter[label] += 1
+        value = sample[attribute]
+        if value not in value_counter:
+            value_counter[value] = 0
+        value_counter[value] += 1
 
-    return label_counter
+    return value_counter
 
 
 def print_tree(root):
@@ -209,12 +238,12 @@ def find_accuracy_different_max_depths(training_data, test_data, attributes, max
 
 
 def main():
-    attributes, ordered_atts, numeric_atts = read_txt_set_attr("bank/data-desc-readable.txt")
+    attributes, ordered_atts, numeric_atts, atts_with_unknown_val = read_txt_set_attr("car/data-desc-readable.txt")
     numeric_atts_copy = numeric_atts.copy()
-    training_data = read_csv("bank/train.csv", ordered_atts, numeric_atts)
-    test_data = read_csv("bank/test.csv", ordered_atts, numeric_atts_copy)
+    training_data = read_csv("car/train.csv", ordered_atts, numeric_atts, atts_with_unknown_val, False)
+    test_data = read_csv("car/test.csv", ordered_atts, numeric_atts_copy, atts_with_unknown_val, False)
     #id3(training_data, attributes, 0, 4, calc_majority_error)
-    find_accuracy_different_max_depths(training_data, test_data, attributes, 7)
+    find_accuracy_different_max_depths(training_data, test_data, attributes, 16)
 
     #test
     #attributes, ordered_atts = read_txt_set_attr("TestTennis/playtennislabels.txt")

@@ -1,0 +1,4 @@
+Outlook:    Sunny   Rain    Overcast
+Temperature:    Hot Mild  Cool
+Humidity:   High    Normal  Low
+Wind:   Strong  Weak
