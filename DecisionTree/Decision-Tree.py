@@ -1,6 +1,25 @@
 import math
+import numpy as np
+import json
 
-def read_csv(CSVfile, ordered_atts):
+def process_numeric_data(data, numeric_atts):
+    #Find median value for each numeric attribute
+    for attribute in numeric_atts:
+        numeric_vals_list = numeric_atts[attribute]
+        numeric_atts[attribute] = np.median(np.array(numeric_vals_list))
+
+    #Turns values from continuous data to binary in data based on median
+    for sample in data:
+        for attribute in numeric_atts:
+            sample_val = int(sample[attribute])
+            att_median = numeric_atts[attribute]
+
+            sample[attribute] = '<=' if sample_val <= att_median else '>'
+
+    return data
+
+
+def read_csv(CSVfile, ordered_atts, numeric_atts):
     with open(CSVfile, 'r') as f:
         data = list()
 
@@ -11,10 +30,17 @@ def read_csv(CSVfile, ordered_atts):
             for x in range(len(sample) - 1):
                 attribute = ordered_atts[x]
                 value = sample[x]
+
+                if attribute in numeric_atts:
+                    numeric_atts[attribute].append(int(value))
+
                 sample_to_add[attribute] = value
 
             sample_to_add['label'] = sample[len(sample) - 1]
             data.append(sample_to_add)
+
+        #Converts continuous data to binary based on attribute's median in set
+        data = process_numeric_data(data, numeric_atts)
 
         return data
 
@@ -23,6 +49,7 @@ def read_txt_set_attr(TXTfile):
     with open(TXTfile, 'r') as f:
         attributes = dict()
         ordered_atts = list()
+        numeric_atts = dict()
 
         for line in f:
             att_vals = line.split()
@@ -30,10 +57,16 @@ def read_txt_set_attr(TXTfile):
             ordered_atts.append(att_name)
             attributes[att_name] = set()
 
-            for x in range(1, len(att_vals)):
-                attributes[att_name].add(att_vals[x])
+            #Turn attribute's continuous values to binary
+            if att_vals[1] == 'numeric':
+                attributes[att_name].add('>')
+                attributes[att_name].add('<=')
+                numeric_atts[att_name] = list()
+            else:
+                for x in range(1, len(att_vals)):
+                    attributes[att_name].add(att_vals[x])
 
-        return attributes, ordered_atts
+        return attributes, ordered_atts, numeric_atts
 
 
 def id3(data, attributes, depth, max_depth, information_gain_method):
@@ -51,12 +84,7 @@ def id3(data, attributes, depth, max_depth, information_gain_method):
 
     total_gain = information_gain_method(label_pdf, len(data))
 
-    #Finds best attribute key, returns none if max info gain is 0
     best_attr_key = find_best_att(data, attributes, total_gain, information_gain_method)
-
-    if best_attr_key is None:
-        node['label'] = max(label_pdf, key=label_pdf.get)
-        return node
 
     node['attribute'] = best_attr_key
     best_attr_vals = attributes[best_attr_key]
@@ -66,7 +94,7 @@ def id3(data, attributes, depth, max_depth, information_gain_method):
     for value in best_attr_vals:
         data_subset = [sample for sample in data if sample[best_attr_key] == value]
 
-        if (len(data_subset) == 0):
+        if len(data_subset) == 0:
             node['values'][value] = {'label': max(label_pdf, key=label_pdf.get)}
         else:
             node['values'][value] = id3(data_subset, attributes, depth + 1, max_depth, information_gain_method)
@@ -74,12 +102,12 @@ def id3(data, attributes, depth, max_depth, information_gain_method):
     return node
 
 
-def find_best_att(data, attribtues, tot_gain, information_gain_method):
+def find_best_att(data, attributes, tot_gain, information_gain_method):
     best_att = None
-    max_gain = 0
-    for att in attribtues.keys():
+    max_gain = -1
+    for att in attributes.keys():
         gain = tot_gain
-        for value in attribtues[att]:
+        for value in attributes[att]:
             data_subset = [sample for sample in data if sample[att] == value]
             label_pdf = count_labels_in_data(data_subset)
 
@@ -138,19 +166,7 @@ def count_labels_in_data(data):
 
 
 def print_tree(root):
-    q = list()
-    q.append(root)
-    while len(q) > 0:
-        curr = q.pop(0)
-
-        if 'values' in curr:
-            for child in curr['values']:
-                q.append(curr['values'][child])
-
-        to_print = ''
-        for key in curr:
-            to_print += key + " " + str(curr[key]) + " "
-        print(to_print + '\t')
+    print (json.dumps(root, sort_keys=True, indent=4))
 
 
 def test_tree_accuracy(test_data, root):
@@ -158,12 +174,13 @@ def test_tree_accuracy(test_data, root):
         return 1
 
     num_correct_prediction = 0
-    for sample in test_data:
 
+    for sample in test_data:
         curr = root
         while 'label' not in curr:
             curr_att = curr['attribute']
             sample_att_val = sample[curr_att]
+
             curr = curr['values'][sample_att_val]
 
         predicted_label = curr['label']
@@ -177,23 +194,33 @@ def test_tree_accuracy(test_data, root):
 def find_accuracy_different_max_depths(training_data, test_data, attributes, max_depth):
 
     gain_methods = [calc_entropy, calc_majority_error, calc_gini]
+
     for x in range(1, max_depth + 1):
         print("depth " + str(x))
         for gain_method in gain_methods:
             att_copy = attributes.copy()
             root = id3(training_data, att_copy, 0, x, gain_method)
-            acc = test_tree_accuracy(test_data, root)
-            print(root)
-            print(acc)
+            test_acc = test_tree_accuracy(test_data, root)
+            train_acc = test_tree_accuracy(training_data, root)
+            #print_tree(root)
+            print("training: " + str(train_acc) + "\t" + "test: " + str(test_acc))
 
         print()
 
 
 def main():
-    attributes, ordered_atts = read_txt_set_attr("car/data-desc-readable.txt")
-    training_data = read_csv("car/test.csv", ordered_atts)
-    test_data = read_csv("car/train.csv", ordered_atts)
-    #root = id3(training_data, attributes, 0, 200, calc_entropy)
-    find_accuracy_different_max_depths(training_data, test_data, attributes, 6)
+    attributes, ordered_atts, numeric_atts = read_txt_set_attr("bank/data-desc-readable.txt")
+    numeric_atts_copy = numeric_atts.copy()
+    training_data = read_csv("bank/train.csv", ordered_atts, numeric_atts)
+    test_data = read_csv("bank/test.csv", ordered_atts, numeric_atts_copy)
+    #id3(training_data, attributes, 0, 4, calc_majority_error)
+    find_accuracy_different_max_depths(training_data, test_data, attributes, 7)
+
+    #test
+    #attributes, ordered_atts = read_txt_set_attr("TestTennis/playtennislabels.txt")
+    #training_data = read_csv("TestTennis/playtennis.csv", ordered_atts)
+    #test_data = [{'Outlook:': 'Sunny', 'Temperature:': 'Hot', 'Humidity:': 'High', 'Wind:': 'Strong', 'label': 'Yes'}]
+    #find_accuracy_different_max_depths(training_data, test_data, attributes, 4)
+
 
 if __name__ == "__main__": main()
