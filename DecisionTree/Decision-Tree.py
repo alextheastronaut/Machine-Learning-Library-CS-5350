@@ -1,6 +1,7 @@
 import math
 import numpy as np
-import json
+import uuid
+from graphviz import Digraph
 
 def process_numeric_data(data, numeric_atts):
     #Find median value for each numeric attribute
@@ -194,9 +195,24 @@ def count_values_of_attribute_in_data(data, attribute):
     return value_counter
 
 
-def print_tree(root):
-    print (json.dumps(root, sort_keys=True, indent=4))
+def draw_tree(root, filename):
+    graph = Digraph('Pretty-Decision-Tree', filename)
+    visit(None, root, graph)
+    graph.view()
 
+def visit(parent, node, graph, key = None):
+    id = uuid.uuid4().hex
+    if isinstance(node, dict):
+        if 'attribute' in node:
+            graph.node(id, node['attribute'])
+        else:
+            graph.node(id, node['label'])
+            graph.edge(parent, id, label=key)
+            return
+        if parent != None:
+            graph.edge(parent, id, label = key)
+        for key, value in node['values'].items():
+            visit(id, value, graph, key)
 
 def test_tree_accuracy(test_data, root):
     if len(test_data) == 0:
@@ -231,20 +247,19 @@ def find_accuracy_different_max_depths(training_data, test_data, attributes, max
             root = id3(training_data, att_copy, 0, x, gain_method)
             test_acc = test_tree_accuracy(test_data, root)
             train_acc = test_tree_accuracy(training_data, root)
-            #print_tree(root)
             print("training: " + str(train_acc) + "\t" + "test: " + str(test_acc))
 
         print()
 
 
 def main():
-    attributes, ordered_atts, numeric_atts, atts_with_unknown_val = read_txt_set_attr("car/data-desc-readable.txt")
+    attributes, ordered_atts, numeric_atts, atts_with_unknown_val = read_txt_set_attr("TestTennis/playtennislabels.txt")
     numeric_atts_copy = numeric_atts.copy()
-    training_data = read_csv("car/train.csv", ordered_atts, numeric_atts, atts_with_unknown_val, False)
-    test_data = read_csv("car/test.csv", ordered_atts, numeric_atts_copy, atts_with_unknown_val, False)
-    #id3(training_data, attributes, 0, 4, calc_majority_error)
-    find_accuracy_different_max_depths(training_data, test_data, attributes, 16)
-
+    training_data = read_csv("TestTennis/playtennis.csv", ordered_atts, numeric_atts, atts_with_unknown_val, False)
+    #test_data = read_csv("car/test.csv", ordered_atts, numeric_atts_copy, atts_with_unknown_val, False)
+    root = id3(training_data, attributes, 0, 4, calc_majority_error)
+    #find_accuracy_different_max_depths(training_data, test_data, attributes, 16)
+    draw_tree(root, "hi")
     #test
     #attributes, ordered_atts = read_txt_set_attr("TestTennis/playtennislabels.txt")
     #training_data = read_csv("TestTennis/playtennis.csv", ordered_atts)
