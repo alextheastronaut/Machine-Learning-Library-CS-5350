@@ -67,7 +67,7 @@ def read_csv(CSVfile, ordered_atts, numeric_atts, atts_with_unknown_val, fill_un
         return data
 
 
-def read_txt_set_attr(TXTfile):
+def read_txt_set_attr(TXTfile, fill_unknown):
     with open(TXTfile, 'r') as f:
         attributes = dict()
         ordered_atts = list()
@@ -89,7 +89,7 @@ def read_txt_set_attr(TXTfile):
                 for x in range(1, len(att_vals)):
                     value = att_vals[x]
 
-                    if value == 'unknown':
+                    if fill_unknown and value == 'unknown':
                         atts_with_unknown_val.add(att_name)
                         continue
 
@@ -253,13 +253,13 @@ def find_accuracy_different_max_depths(training_data, test_data, attributes, max
 
 
 def main():
-    attributes, ordered_atts, numeric_atts, atts_with_unknown_val = read_txt_set_attr("TestTennis/playtennislabels.txt")
+    attributes, ordered_atts, numeric_atts, atts_with_unknown_val = read_txt_set_attr("bank/data-desc-readable.txt", False)
     numeric_atts_copy = numeric_atts.copy()
-    training_data = read_csv("TestTennis/playtennis.csv", ordered_atts, numeric_atts, atts_with_unknown_val, False)
-    #test_data = read_csv("car/test.csv", ordered_atts, numeric_atts_copy, atts_with_unknown_val, False)
-    root = id3(training_data, attributes, 0, 4, calc_majority_error)
-    #find_accuracy_different_max_depths(training_data, test_data, attributes, 16)
-    draw_tree(root, "hi")
+    training_data = read_csv("bank/train.csv", ordered_atts, numeric_atts, atts_with_unknown_val, False)
+    test_data = read_csv("bank/test.csv", ordered_atts, numeric_atts_copy, atts_with_unknown_val, False)
+    #root = id3(training_data, attributes, 0, 4, calc_majority_error)
+    find_accuracy_different_max_depths(training_data, test_data, attributes, 16)
+    #draw_tree(root, "hi")
     #test
     #attributes, ordered_atts = read_txt_set_attr("TestTennis/playtennislabels.txt")
     #training_data = read_csv("TestTennis/playtennis.csv", ordered_atts)
