@@ -210,7 +210,7 @@ def visit(parent, node, graph, key=None):
             graph.node(id, node['label'])
             graph.edge(parent, id, label=key)
             return
-        if parent != None:
+        if parent is not None:
             graph.edge(parent, id, label=key)
         for key, value in node['values'].items():
             visit(id, value, graph, key)
@@ -261,14 +261,16 @@ def find_average_accuracy_different_max_depths(training_data, test_data, attribu
 
 
 def main():
-    attributes, ordered_atts, numeric_atts, atts_with_unknown_val = read_txt_set_attr("bank/data-desc-readable.txt",
-                                                                                      True)
+    attributes, ordered_atts, numeric_atts, atts_with_unknown_val = read_txt_set_attr("car/data-desc-readable.txt",
+                                                                                      False)
     numeric_atts_copy = numeric_atts.copy()
-    training_data = read_csv("bank/train.csv", ordered_atts, numeric_atts, atts_with_unknown_val, True)
-    test_data = read_csv("bank/test.csv", ordered_atts, numeric_atts_copy, atts_with_unknown_val, True)
-    # root = id3(training_data, attributes, 0, 4, calc_majority_error)
-    find_average_accuracy_different_max_depths(training_data, test_data, attributes, 10, 16)
-    # draw_tree(root, "hi")
+    training_data = read_csv("car/train.csv", ordered_atts, numeric_atts, atts_with_unknown_val, False)
+    test_data = read_csv("car/test.csv", ordered_atts, numeric_atts_copy, atts_with_unknown_val, False)
+    #root = id3(training_data, attributes, 0, 4, calc_gini)
+    find_average_accuracy_different_max_depths(training_data, test_data, attributes, 10, 6)
+
+
+
     #test
     # attributes, ordered_atts = read_txt_set_attr("TestTennis/playtennislabels.txt")
     # training_data = read_csv("TestTennis/playtennis.csv", ordered_atts)
