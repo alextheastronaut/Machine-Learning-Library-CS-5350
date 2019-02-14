@@ -2,7 +2,10 @@ This is a machine learning library developed by Alex Chen for CS5350/6350
 
 Instructions for running decision tree:
     
-    1. Scroll down to main method in Decision-Tree.py
+    1. TO RUN:
+        cd /path/to/DecisionTrees
+        python3.7 Decision-Tree.py
+        
     2. You can add methods into main(), but these first 3 are essential:
         
         Parameters:
@@ -41,5 +44,6 @@ Instructions for running decision tree:
         find_average_accuracy_different_max_depths(training_data, test_data, attributes, num_trials, max_tree_depth)
         e.g.
         find_average_accuracy_different_max_depths(training_data, test_data, attributes, 10, 16)
+    
             
         
