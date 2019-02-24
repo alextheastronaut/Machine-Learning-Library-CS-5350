@@ -102,13 +102,14 @@ def make_d_tree(data, attributes, **kwargs):
     information_gain_method = kwargs.get('gain', calc_entropy)
     max_depth = kwargs.get('max_depth', np.inf)
     should_bag = kwargs.get('should_bag', False)
+    weights_of_samples_list = kwargs.get('weights', None)
 
-    return id3(data, attributes, 0, max_depth, information_gain_method, should_bag)
+    return id3(data, attributes, 0, max_depth, information_gain_method, weights_of_samples_list, should_bag)
 
 
-def id3(data, attributes, depth, max_depth, information_gain_method, should_bag):
+def id3(data, attributes, depth, max_depth, information_gain_method, weights_of_samples_list, should_bag):
 
-    label_pdf = count_values_of_attribute_in_data(data, 'label')
+    label_pdf = count_values_of_attribute_in_data(data, 'label', weights_of_samples_list)
 
     node = dict()
 
@@ -122,7 +123,7 @@ def id3(data, attributes, depth, max_depth, information_gain_method, should_bag)
 
     total_gain = information_gain_method(label_pdf, len(data))
 
-    best_attr_key = find_best_att(data, attributes, total_gain, information_gain_method)
+    best_attr_key = find_best_att(data, attributes, total_gain, information_gain_method, weights_of_samples_list)
 
     node['attribute'] = best_attr_key
     best_attr_vals = attributes[best_attr_key]
@@ -136,19 +137,19 @@ def id3(data, attributes, depth, max_depth, information_gain_method, should_bag)
         if len(data_subset) == 0:
             node['values'][value] = {'label': max(label_pdf, key=label_pdf.get)}
         else:
-            node['values'][value] = id3(data_subset, attributes_copy, depth + 1, max_depth, information_gain_method, should_bag)
+            node['values'][value] = id3(data_subset, attributes_copy, depth + 1, max_depth, information_gain_method, weights_of_samples_list, should_bag)
 
     return node
 
 
-def find_best_att(data, attributes, tot_gain, information_gain_method):
+def find_best_att(data, attributes, tot_gain, information_gain_method, weights_of_samples_list):
     best_att = None
     max_gain = -1
     for att in attributes.keys():
         gain = tot_gain
         for value in attributes[att]:
             data_subset = [sample for sample in data if sample[att] == value]
-            label_pdf = count_values_of_attribute_in_data(data_subset, 'label')
+            label_pdf = count_values_of_attribute_in_data(data_subset, 'label', weights_of_samples_list)
 
             weight = len(data_subset) / len(data)
             entropy = information_gain_method(label_pdf, len(data_subset))
@@ -193,13 +194,20 @@ def calc_majority_error(labels_pdf, set_size):
     return (set_size - max) / set_size
 
 
-def count_values_of_attribute_in_data(data, attribute):
+def count_values_of_attribute_in_data(data, attribute, weights_of_samples_list):
+
     value_counter = dict()
-    for sample in data:
+
+    for x in range(len(data)):
+        sample = data[x]
         value = sample[attribute]
         if value not in value_counter:
             value_counter[value] = 0
-        value_counter[value] += 1
+
+        if weights_of_samples_list is None:
+            value_counter[value] += 1
+        else:
+            value_counter[value] += weights_of_samples_list[x] #CHANGED
 
     return value_counter
 
@@ -275,7 +283,7 @@ def main():
     numeric_atts_copy = numeric_atts.copy()
     training_data = read_csv("car/train.csv", ordered_atts, numeric_atts, atts_with_unknown_val, False)
     test_data = read_csv("car/test.csv", ordered_atts, numeric_atts_copy, atts_with_unknown_val, False)
-    root = make_d_tree(training_data, attributes, gain=calc_majority_error, should_bag=False)
+    root = make_d_tree(training_data, attributes, gain=calc_majority_error)
     print(root)
     #find_average_accuracy_different_max_depths(training_data, test_data, attributes, 10, 6)
 
