@@ -37,7 +37,8 @@ def fill_unknown_values(data, atts_with_unknown_val):
     return data
 
 
-def read_csv(CSVfile, ordered_atts, numeric_atts, atts_with_unknown_val, fill_unknown):
+def read_csv(CSVfile, ordered_atts, numeric_atts, atts_with_unknown_val):
+
     with open(CSVfile, 'r') as f:
         data = list()
 
@@ -57,12 +58,13 @@ def read_csv(CSVfile, ordered_atts, numeric_atts, atts_with_unknown_val, fill_un
             sample_to_add['label'] = sample[len(sample) - 1]
             data.append(sample_to_add)
 
-        if fill_unknown:
+        if atts_with_unknown_val is not None:
             # Fills unknown values with its attribute's most common value
             data = fill_unknown_values(data, atts_with_unknown_val)
 
-        # Converts continuous data to binary based on attribute's median in set
-        data = process_numeric_data(data, numeric_atts)
+        if numeric_atts is not None:
+            # Converts continuous data to binary based on attribute's median in set
+            data = process_numeric_data(data, numeric_atts)
 
         return data
 
@@ -234,25 +236,53 @@ def visit(parent, node, graph, key=None):
 
 
 def test_tree_accuracy(test_data, root):
+
     if len(test_data) == 0:
         return 1
 
     num_correct_prediction = 0
 
     for sample in test_data:
-        curr = root
-        while 'label' not in curr:
-            curr_att = curr['attribute']
-            sample_att_val = sample[curr_att]
-
-            curr = curr['values'][sample_att_val]
-
-        predicted_label = curr['label']
+        predicted_label = get_predicted_label_from_tree(root, sample)
 
         if predicted_label == sample['label']:
             num_correct_prediction += 1
 
     return num_correct_prediction / len(test_data)
+
+
+def get_tree_weight_error_and_flag_correctly_predicted_samples(root, data, weights_of_samples):
+
+    sum = 0
+    sample_was_predicted_correctly = [0] * len(data)
+
+    for x in range(len(data)):
+        sample = data[x]
+        predicted_label = get_predicted_label_from_tree(root, sample)
+
+        if predicted_label == sample:
+            sum += weights_of_samples[x]
+            sample_was_predicted_correctly[x] = 1
+        else:
+            sum -= weights_of_samples[x]
+            sample_was_predicted_correctly[x] = -1
+
+        sum += weights_of_samples[x] if predicted_label == sample else -weights_of_samples[x]
+
+    return 0.5 - 0.5 * sum, sample_was_predicted_correctly
+
+
+def get_predicted_label_from_tree(root, sample):
+
+    curr = root
+
+    while 'label' not in curr:
+        curr_att = curr['attribute']
+        sample_att_val = sample[curr_att]
+
+        curr = curr['values'][sample_att_val]
+
+    return curr['label']
 
 
 def find_average_accuracy_different_max_depths(training_data, test_data, attributes, num_trials, max_depth):
@@ -277,12 +307,18 @@ def find_average_accuracy_different_max_depths(training_data, test_data, attribu
         print()
 
 
-def main():
-    attributes, ordered_atts, numeric_atts, atts_with_unknown_val = read_txt_set_attr("car/data-desc-readable.txt",
-                                                                                      False)
+def get_atts_and_test_and_training_data_from_file(attributes_file, training_data_file, test_data_file, **kwargs):
+    fill_unknown = kwargs.get("fill_unknown", False)
+
+    attributes, ordered_atts, numeric_atts, atts_with_unknown_val = read_txt_set_attr(attributes_file, fill_unknown)
     numeric_atts_copy = numeric_atts.copy()
-    training_data = read_csv("car/train.csv", ordered_atts, numeric_atts, atts_with_unknown_val, False)
-    test_data = read_csv("car/test.csv", ordered_atts, numeric_atts_copy, atts_with_unknown_val, False)
+    training_data = read_csv(training_data_file, ordered_atts, numeric_atts, atts_with_unknown_val)
+    test_data = read_csv(test_data_file, ordered_atts, numeric_atts_copy, atts_with_unknown_val)
+
+    return attributes, training_data, test_data
+
+def main():
+    attributes, training_data, test_data = get_atts_and_test_and_training_data_from_file("car/data-desc-readable.txt", "car/train.csv", "car/test.csv")
     root = make_d_tree(training_data, attributes, gain=calc_majority_error)
     print(root)
     #find_average_accuracy_different_max_depths(training_data, test_data, attributes, 10, 6)
