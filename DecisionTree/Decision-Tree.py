@@ -1,7 +1,7 @@
 import math
 import numpy as np
 import uuid
-from graphviz import Digraph
+#from graphviz import Digraph
 
 
 def process_numeric_data(data, numeric_atts):
@@ -98,7 +98,16 @@ def read_txt_set_attr(TXTfile, fill_unknown):
         return attributes, ordered_atts, numeric_atts, atts_with_unknown_val
 
 
-def id3(data, attributes, depth, max_depth, information_gain_method):
+def make_d_tree(data, attributes, **kwargs):
+    information_gain_method = kwargs.get('gain', calc_entropy)
+    max_depth = kwargs.get('max_depth', np.inf)
+    should_bag = kwargs.get('should_bag', False)
+
+    return id3(data, attributes, 0, max_depth, information_gain_method, should_bag)
+
+
+def id3(data, attributes, depth, max_depth, information_gain_method, should_bag):
+
     label_pdf = count_values_of_attribute_in_data(data, 'label')
 
     node = dict()
@@ -127,7 +136,7 @@ def id3(data, attributes, depth, max_depth, information_gain_method):
         if len(data_subset) == 0:
             node['values'][value] = {'label': max(label_pdf, key=label_pdf.get)}
         else:
-            node['values'][value] = id3(data_subset, attributes_copy, depth + 1, max_depth, information_gain_method)
+            node['values'][value] = id3(data_subset, attributes_copy, depth + 1, max_depth, information_gain_method, should_bag)
 
     return node
 
@@ -266,8 +275,9 @@ def main():
     numeric_atts_copy = numeric_atts.copy()
     training_data = read_csv("car/train.csv", ordered_atts, numeric_atts, atts_with_unknown_val, False)
     test_data = read_csv("car/test.csv", ordered_atts, numeric_atts_copy, atts_with_unknown_val, False)
-    #root = id3(training_data, attributes, 0, 4, calc_gini)
-    find_average_accuracy_different_max_depths(training_data, test_data, attributes, 10, 6)
+    root = make_d_tree(training_data, attributes, gain=calc_majority_error, should_bag=False)
+    print(root)
+    #find_average_accuracy_different_max_depths(training_data, test_data, attributes, 10, 6)
 
 
 
