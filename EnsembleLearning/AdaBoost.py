@@ -14,7 +14,7 @@ def create_ada_boosted_stumps(data, attributes, num_stumps):
                                                                                                                   weights_of_samples)
         tree_say = np.log((1 - tree_weighted_error) / tree_weighted_error)
         update_and_normalize_weights(weights_of_samples, was_correctly_predicted, tree_say)
-        #print("Error ", x, "\t", tree_weighted_error)
+        # print("Error ", x, "\t", tree_weighted_error)
 
         stumps[x] = dict()
         stumps[x]["stump"] = root
@@ -30,25 +30,46 @@ def update_and_normalize_weights(weights_of_samples, was_correctly_predicted, tr
     weights_of_samples /= np.sum(weights_of_samples)
 
 
-def find_error_of_boosted_stumps(stumps, test_data):
+def find_error_of_boosted_stumps(trees, test_data, are_stumps):
     sum_correct = 0
     for sample in test_data:
         sum_vote = 0
 
-        for stmp in stumps:
-            predicted_label = get_predicted_label_from_tree(stmp['stump'], sample)
-            sum_vote += stmp['say'] if predicted_label == 'yes' else -stmp['say']
+        for t in trees:
 
-        stump_predicted_label = 'yes' if np.sign(sum_vote) >= 0 else 'no'
+            if are_stumps:
+                predicted_label = get_predicted_label_from_tree(t['stump'], sample)
+                sum_vote += t['say'] if predicted_label == 'yes' else -t['say']
+            else:
+                predicted_label = get_predicted_label_from_tree(t, sample)
+                sum_vote += 1 if predicted_label == 'yes' else -1
 
-        if stump_predicted_label == sample['label']:
+        vote_predicted_label = 'yes' if np.sign(sum_vote) >= 0 else 'no'
+
+        if vote_predicted_label == sample['label']:
             sum_correct += 1
 
     return sum_correct / len(test_data)
 
 
+def bagged_trees(data, attributes, num_trees):
+    trees = [None] * num_trees
+
+    for x in range(num_trees):
+        bag = [None] * len(data)
+
+        for y in range(len(data)):
+            bag[y] = data[np.random.randint(0, len(data))]
+
+        trees[x] = make_d_tree(bag, attributes)
+
+    return trees
+
+
 if __name__ == "__main__":
     attributes, training_data, test_data = get_atts_and_test_and_training_data_from_file(
         "../DataSets/bank/data-desc-readable.txt", "../DataSets/bank/train.csv", "../DataSets/bank/test.csv")
-    stumps = create_ada_boosted_stumps(training_data, attributes, 1)
-    print(find_error_of_boosted_stumps(stumps, test_data))
+    #stumps = create_ada_boosted_stumps(training_data, attributes, 10)
+    #print(find_error_of_boosted_stumps(stumps, test_data, True))
+    trees = bagged_trees(training_data, attributes, 10)
+    print(find_error_of_boosted_stumps(trees, test_data, False))
