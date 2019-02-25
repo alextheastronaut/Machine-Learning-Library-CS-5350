@@ -1,7 +1,9 @@
 import math
 import numpy as np
 import uuid
-#from graphviz import Digraph
+
+
+# from graphviz import Digraph
 
 
 def process_numeric_data(data, numeric_atts):
@@ -25,7 +27,7 @@ def fill_unknown_values(data, atts_with_unknown_val):
     most_common_val_of_att = dict()
 
     for att in atts_with_unknown_val:
-        att_count = count_values_of_attribute_in_data(data, att)
+        att_count = count_values_of_attribute_in_data(data, att, None)
         del att_count['unknown']
         most_common_val_of_att[att] = max(att_count, key=att_count.get)
 
@@ -38,9 +40,9 @@ def fill_unknown_values(data, atts_with_unknown_val):
 
 
 def read_csv(CSVfile, ordered_atts, numeric_atts, atts_with_unknown_val):
-
     with open(CSVfile, 'r') as f:
         data = list()
+        sample_index = 0
 
         for line in f:
             sample = line.strip().split(',')
@@ -56,6 +58,8 @@ def read_csv(CSVfile, ordered_atts, numeric_atts, atts_with_unknown_val):
                 sample_to_add[attribute] = value
 
             sample_to_add['label'] = sample[len(sample) - 1]
+            sample_to_add['index'] = sample_index
+            sample_index += 1
             data.append(sample_to_add)
 
         if atts_with_unknown_val is not None:
@@ -110,7 +114,6 @@ def make_d_tree(data, attributes, **kwargs):
 
 
 def id3(data, attributes, depth, max_depth, information_gain_method, weights_of_samples_list, should_bag):
-
     label_pdf = count_values_of_attribute_in_data(data, 'label', weights_of_samples_list)
 
     node = dict()
@@ -123,7 +126,10 @@ def id3(data, attributes, depth, max_depth, information_gain_method, weights_of_
         node['label'] = max(label_pdf, key=label_pdf.get)
         return node
 
-    total_gain = information_gain_method(label_pdf, len(data))
+    if weights_of_samples_list is None:
+        total_gain = information_gain_method(label_pdf, len(data), False)
+    else:
+        total_gain = information_gain_method(label_pdf, len(data), True)
 
     best_attr_key = find_best_att(data, attributes, total_gain, information_gain_method, weights_of_samples_list)
 
@@ -139,7 +145,8 @@ def id3(data, attributes, depth, max_depth, information_gain_method, weights_of_
         if len(data_subset) == 0:
             node['values'][value] = {'label': max(label_pdf, key=label_pdf.get)}
         else:
-            node['values'][value] = id3(data_subset, attributes_copy, depth + 1, max_depth, information_gain_method, weights_of_samples_list, should_bag)
+            node['values'][value] = id3(data_subset, attributes_copy, depth + 1, max_depth, information_gain_method,
+                                        weights_of_samples_list, should_bag)
 
     return node
 
@@ -153,8 +160,15 @@ def find_best_att(data, attributes, tot_gain, information_gain_method, weights_o
             data_subset = [sample for sample in data if sample[att] == value]
             label_pdf = count_values_of_attribute_in_data(data_subset, 'label', weights_of_samples_list)
 
-            weight = len(data_subset) / len(data)
-            entropy = information_gain_method(label_pdf, len(data_subset))
+            samples_are_weighted = False
+
+            if weights_of_samples_list is None:
+                weight = len(data_subset) / len(data)
+            else:
+                weight = sum_weights_of_samples(data_subset, weights_of_samples_list)
+                samples_are_weighted = True
+
+            entropy = information_gain_method(label_pdf, len(data_subset), samples_are_weighted)
             gain = gain - weight * entropy
 
         if gain >= max_gain:
@@ -164,27 +178,35 @@ def find_best_att(data, attributes, tot_gain, information_gain_method, weights_o
     return best_att
 
 
-def calc_entropy(labels_pdf, set_size):
+def sum_weights_of_samples(data_subset, weights_of_samples_list):
+    sum_of_weights = 0
+    for sample in data_subset:
+        sum_of_weights += weights_of_samples_list[sample['index']]
+
+    return sum_of_weights
+
+
+def calc_entropy(labels_pdf, set_size, samples_are_weighted):
     entropy = 0
     for label in labels_pdf:
         count = labels_pdf[label]
-        prob = count / set_size
+        prob = count / set_size if not samples_are_weighted else count
         entropy += -prob * math.log(prob, 2)
 
     return entropy
 
 
-def calc_gini(labels_pdf, set_size):
+def calc_gini(labels_pdf, set_size, samples_are_weighted):
     gini = 1
     for label in labels_pdf:
         count = labels_pdf[label]
-        prob = count / set_size
+        prob = count / set_size if not samples_are_weighted else count
         gini += -(prob ** 2)
 
     return gini
 
 
-def calc_majority_error(labels_pdf, set_size):
+def calc_majority_error(labels_pdf, set_size, samples_are_weighted):
     if set_size == 0:
         return 0
 
@@ -193,11 +215,13 @@ def calc_majority_error(labels_pdf, set_size):
         if labels_pdf[label] > max:
             max = labels_pdf[label]
 
-    return (set_size - max) / set_size
+    if samples_are_weighted:
+        return 1 - max
+    else:
+        return (set_size - max) / set_size
 
 
 def count_values_of_attribute_in_data(data, attribute, weights_of_samples_list):
-
     value_counter = dict()
 
     for x in range(len(data)):
@@ -209,7 +233,7 @@ def count_values_of_attribute_in_data(data, attribute, weights_of_samples_list):
         if weights_of_samples_list is None:
             value_counter[value] += 1
         else:
-            value_counter[value] += weights_of_samples_list[x] #CHANGED
+            value_counter[value] += weights_of_samples_list[x]  # CHANGED
 
     return value_counter
 
@@ -236,7 +260,6 @@ def visit(parent, node, graph, key=None):
 
 
 def test_tree_accuracy(test_data, root):
-
     if len(test_data) == 0:
         return 1
 
@@ -252,7 +275,6 @@ def test_tree_accuracy(test_data, root):
 
 
 def get_tree_weight_error_and_flag_correctly_predicted_samples(root, data, weights_of_samples):
-
     sum = 0
     sample_was_predicted_correctly = [0] * len(data)
 
@@ -260,20 +282,17 @@ def get_tree_weight_error_and_flag_correctly_predicted_samples(root, data, weigh
         sample = data[x]
         predicted_label = get_predicted_label_from_tree(root, sample)
 
-        if predicted_label == sample:
+        if predicted_label == sample['label']:
             sum += weights_of_samples[x]
             sample_was_predicted_correctly[x] = 1
         else:
             sum -= weights_of_samples[x]
             sample_was_predicted_correctly[x] = -1
 
-        sum += weights_of_samples[x] if predicted_label == sample else -weights_of_samples[x]
-
     return 0.5 - 0.5 * sum, sample_was_predicted_correctly
 
 
 def get_predicted_label_from_tree(root, sample):
-
     curr = root
 
     while 'label' not in curr:
@@ -302,7 +321,8 @@ def find_average_accuracy_different_max_depths(training_data, test_data, attribu
 
         for gain_method in gain_methods:
             print(gain_method)
-            print("Training: ", train_acc_sum[gain_method] / num_trials, "\t test: ", test_acc_sum[gain_method] / num_trials)
+            print("Training: ", train_acc_sum[gain_method] / num_trials, "\t test: ",
+                  test_acc_sum[gain_method] / num_trials)
 
         print()
 
@@ -317,15 +337,15 @@ def get_atts_and_test_and_training_data_from_file(attributes_file, training_data
 
     return attributes, training_data, test_data
 
+
 def main():
-    attributes, training_data, test_data = get_atts_and_test_and_training_data_from_file("car/data-desc-readable.txt", "car/train.csv", "car/test.csv")
+    attributes, training_data, test_data = get_atts_and_test_and_training_data_from_file(
+        "../DataSets/bank/data-desc-readable.txt", "../DataSets/bank/train.csv", "../DataSets/bank/test.csv", fill_unknown=True)
     root = make_d_tree(training_data, attributes, gain=calc_majority_error)
     print(root)
-    #find_average_accuracy_different_max_depths(training_data, test_data, attributes, 10, 6)
+    # find_average_accuracy_different_max_depths(training_data, test_data, attributes, 10, 6)
 
-
-
-    #test
+    # test
     # attributes, ordered_atts = read_txt_set_attr("TestTennis/playtennislabels.txt")
     # training_data = read_csv("TestTennis/playtennis.csv", ordered_atts)
     # test_data = [{'Outlook:': 'Sunny', 'Temperature:': 'Hot', 'Humidity:': 'High', 'Wind:': 'Strong', 'label': 'Yes'}]
