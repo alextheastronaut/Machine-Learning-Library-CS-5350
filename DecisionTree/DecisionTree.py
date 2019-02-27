@@ -1,7 +1,7 @@
 import math
 import numpy as np
+import random
 import uuid
-
 
 # from graphviz import Digraph
 
@@ -107,13 +107,13 @@ def read_txt_set_attr(TXTfile, fill_unknown):
 def make_d_tree(data, attributes, **kwargs):
     information_gain_method = kwargs.get('gain', calc_entropy)
     max_depth = kwargs.get('max_depth', np.inf)
-    should_bag = kwargs.get('should_bag', False)
     weights_of_samples_list = kwargs.get('weights', None)
+    att_subset_size = kwargs.get('att_subset_size', -1)
 
-    return id3(data, attributes, 0, max_depth, information_gain_method, weights_of_samples_list, should_bag)
+    return id3(data, attributes, 0, max_depth, information_gain_method, weights_of_samples_list, att_subset_size)
 
 
-def id3(data, attributes, depth, max_depth, information_gain_method, weights_of_samples_list, should_bag):
+def id3(data, attributes, depth, max_depth, information_gain_method, weights_of_samples_list, att_subset_size):
     label_pdf = count_values_of_attribute_in_data(data, 'label', weights_of_samples_list)
 
     node = dict()
@@ -131,7 +131,16 @@ def id3(data, attributes, depth, max_depth, information_gain_method, weights_of_
     else:
         total_gain = information_gain_method(label_pdf, len(data), True)
 
-    best_attr_key = find_best_att(data, attributes, total_gain, information_gain_method, weights_of_samples_list)
+    if att_subset_size == -1:
+        best_attr_key = find_best_att(data, attributes, total_gain, information_gain_method, weights_of_samples_list)
+    else:
+        if att_subset_size < len(attributes):
+            chosen_atts = random.sample(list(attributes), att_subset_size)
+            att_subset = {att: attributes[att] for att in chosen_atts}
+        else:
+            att_subset = attributes
+
+        best_attr_key = find_best_att(data, att_subset, total_gain, information_gain_method, weights_of_samples_list)
 
     node['attribute'] = best_attr_key
     best_attr_vals = attributes[best_attr_key]
@@ -146,7 +155,7 @@ def id3(data, attributes, depth, max_depth, information_gain_method, weights_of_
             node['values'][value] = {'label': max(label_pdf, key=label_pdf.get)}
         else:
             node['values'][value] = id3(data_subset, attributes_copy, depth + 1, max_depth, information_gain_method,
-                                        weights_of_samples_list, should_bag)
+                                        weights_of_samples_list, att_subset_size)
 
     return node
 
@@ -188,6 +197,7 @@ def sum_weights_of_samples(data_subset, weights_of_samples_list):
 
 def calc_entropy(labels_pdf, set_size, samples_are_weighted):
     entropy = 0
+
     for label in labels_pdf:
         count = labels_pdf[label]
         prob = count / set_size if not samples_are_weighted else count
@@ -234,6 +244,12 @@ def count_values_of_attribute_in_data(data, attribute, weights_of_samples_list):
             value_counter[value] += 1
         else:
             value_counter[value] += weights_of_samples_list[x]  # CHANGED
+
+    # Normalize weights of atts to 1
+    if weights_of_samples_list is not None:
+        sum_weights = sum(value_counter.values())
+        for value in value_counter:
+            value_counter[value] /= sum_weights
 
     return value_counter
 
