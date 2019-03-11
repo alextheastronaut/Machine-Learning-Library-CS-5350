@@ -65,6 +65,7 @@ Ensemble Learning:
 Linear Regression:
     LR_1. TO RUN:
 	cd /path/to/LinearRegression
+	python3.7 GradientDescent.py
 
     LR_2. You can add methods to main:
 	train = read_csv(path/to/train)
@@ -87,5 +88,28 @@ Linear Regression:
 			   pic_name
 		    )
 
+Perceptron:
+   P_1. TO RUN:
+	cd /path/to/Perceptron
+	python3.7 Perceptron.py
+
+   P_2. You can add methods to main:
+	train = read_csv(relative/path/to/train)
+	test = read_csv(relative/path/to/test)
+	
+	To get weight vector or list of weight vectors, run perceptron algorithm:
+	Standard:
+	weight = perceptron(train_data, num_epochs, learn_rate, percep_type=0)
+	Voted:
+	weights_list = perceptron(train_data, num_epochs, learn_rate, percep_type=1)
+	Average:
+	weight, weights_list = perceptron(train_data, num_epochs, learn_rate, percep_type=2)
+
+	To get error, of resulting weight vector or list:
+	Standard and Average:
+	find_error_on_test_data(weight, test_data)
+	Voted:
+	find_error_on_test_data(weights_list, test_data)
+	
             
         
