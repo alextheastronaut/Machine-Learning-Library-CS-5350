@@ -1,4 +1,5 @@
 import numpy as np
+import matplotlib.pyplot as plt
 
 
 def read_csv(CSV_file):
@@ -56,7 +57,8 @@ def perceptron(data, num_epochs, learn_rate, **kwargs):
     for t in range(num_epochs):
 
         if percep_type is 0:
-            np.random.shuffle(x)
+            np.random.shuffle(data)
+            x, y = turn_data_to_x_and_y(data)
 
         for i in range(len(x)):
             # if wrong prediction, update weight vector
@@ -104,16 +106,34 @@ def find_error_on_test_data(percep_output, test_data):
 
     print(times_wrong / len(test_data))
 
+
+def graph_paper_problem(picture_name):
+    x_y = [0, 0]
+    y_y = [-1, 1]
+    x_n = [-1, 1]
+    y_n = [0, 0]
+    fig = plt.figure()
+    plt.scatter(x_y, y_y, marker='+')
+    plt.scatter(x_n, y_n, marker='_')
+    path = "/home/alex/Documents/MachineLearning/pics/"
+    fig.savefig(path + picture_name + '.png', dpi=100)
+    plt.show()
+
+
 if __name__ == "__main__":
     csv_train = "../DataSets/bank-note/train.csv"
     csv_test = "../DataSets/bank-note/test.csv"
 
     train_data = read_csv(csv_train)
     weight= perceptron(train_data, 10, 0.1, percep_type=0)
-    #weight = weight / np.linalg.norm(weight)
+    #vec.sort(key=lambda x:x[1])
+    print(weight)
+    weight = weight / np.linalg.norm(weight)
     print(weight)
     #print(len(vec))
 
     test_data = read_csv(csv_test)
     find_error_on_test_data(weight, train_data)
     find_error_on_test_data(weight, test_data)
+
+    graph_paper_problem("HW32b")
