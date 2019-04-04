@@ -47,11 +47,13 @@ def stochastic_sub_gradient_descent(data, gamma, d, C, epochs):
             r_t = gamma / (1 + gamma * t / d)
 
         for i in range(N):
+
+            w_o = np.copy(w)
+            w_o[len(w) - 1] = 0
+
             if y[i] * w.dot(x[i]) <= 1:
-                w = w - r_t * w + r_t * N * C * y[i] * x[i]
+                w = w_o - r_t * w_o + r_t * N * C * y[i] * x[i]
             else:
-                w_o = np.copy(w)
-                w_o[len(w) - 1] = 0
                 w = w - r_t * w_o
 
     return w
@@ -67,6 +69,7 @@ def print_error_for_different_C(training_data, test_data, gamma, d, C_arr, epoch
         print('C = ', C)
         print('Training Error: ', train_error)
         print('Test Error:, ', test_error)
+        print()
 
 
 def get_w_error(lrn_w, test_data):
@@ -81,12 +84,40 @@ def get_w_error(lrn_w, test_data):
     return times_wrong / len(test_data)
 
 
+def problem_7():
+    gamma = [0.01, 0.005, 0.0025]
+    x = np.array([[0.5, -1, 0.3, 1], [-1, -2, -2, 1], [1.5, 0.2, -2.5, 1]])
+    y = np.array([1, -2, 1])
+    w = np.zeros(4)
+
+    for r in gamma:
+        print('Gamma = ', r)
+        for i in range(len(x)):
+
+            w_o = np.copy(w)
+            w_o[len(w) - 1] = 0
+
+            if y[i] * w.dot(x[i]) <= 1:
+                r * len(x) * y[i] * x[i]
+                sub_grad = w_o - len(x) * y[i] * x[i]
+                w = w_o - r * sub_grad
+            else:
+                sub_grad = w_o
+                w = w - r * sub_grad
+
+            print('For sample ', i + 1, ': ', r * sub_grad)
+
+        print()
+
+
+
 if __name__ == '__main__':
     csv_train = "../DataSets/bank-note/train.csv"
     csv_test = "../DataSets/bank-note/test.csv"
 
-    train_data = read_csv(csv_train)
-    test_data = read_csv(csv_test)
-    C1 = np.array([1, 10, 50, 100, 300, 500, 700])
-    C1 = C1 / 873
-    print_error_for_different_C(train_data, test_data, 0.1, 1, C1, 100)
+    #train_data = read_csv(csv_train)
+    #test_data = read_csv(csv_test)
+    #C1 = np.array([1, 10, 50, 100, 300, 500, 700])
+    #C1 = C1 / 873
+    #print_error_for_different_C(train_data, test_data, 0.01, 0.05, C1, 100)
+    problem_7()
