@@ -138,7 +138,7 @@ def make_figure(x, y, graph_title, x_label, y_label, picture_name):
     plt.xlabel(x_label)
     plt.ylabel(y_label)
     #path = "/home/alex/MachineLearning/pics/"
-    fig.savefig(picture_name + '.png', dpi=100)
+    #fig.savefig(picture_name + '.png', dpi=100)
     plt.show()
 
 
@@ -149,15 +149,13 @@ def plot_descent(descent_method, r, threshold, num_iter, training_data, test_dat
     print(w)
     print(b)
     print("Cost: ", cost_function_data(w, b, test_data))
-    print(optimal)
-    print(np.linalg.norm(optimal - w))
 
 
 if __name__ == "__main__":
-    #training_data = read_csv("../DataSets/concrete/train.csv")
-    #test_data = read_csv("../DataSets/concrete/test.csv")
-    #atts = read_txt("../DataSets/concrete/data-desc-readable.txt")
-    #plot_descent(batch_gradient_descent, .014, 10 ** -6, 50, training_data, test_data, atts, "hi", "Number of Iterations", "Cost Function", "HW2test")
+    training_data = read_csv("../DataSets/concrete/train.csv")
+    test_data = read_csv("../DataSets/concrete/test.csv")
+    atts = read_txt("../DataSets/concrete/data-desc-readable.txt")
+    plot_descent(batch_gradient_descent, .014, 10 ** -6, 50, training_data, test_data, atts, "hi", "Number of Iterations", "Cost Function", "HW2test")
 
     data = read_csv("../DataSets/LMStest/matrix.csv")
     atts = read_txt("../DataSets/LMStest/var.txt")

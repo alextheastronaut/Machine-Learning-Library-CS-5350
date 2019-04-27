@@ -16,9 +16,9 @@ def create_ada_boosted_stumps(data, attributes, num_stumps):
                                                                                                                   weights_of_samples)
         tree_say = np.log((1 - tree_weighted_error) / tree_weighted_error)
         update_and_normalize_weights(weights_of_samples, was_correctly_predicted, tree_say)
-        #print("Error ", x, "\t", tree_weighted_error)
-        #print("Alpha ", tree_say)
-        #print(root)
+        print("Error ", x, "\t", tree_weighted_error)
+        print("Alpha ", tree_say)
+        print(root)
 
         stumps[x] = dict()
         stumps[x]["stump"] = root
@@ -27,31 +27,28 @@ def create_ada_boosted_stumps(data, attributes, num_stumps):
     return stumps
 
 
-def error_vs_num_trees(num_iter, attributes, training_data, test_data):
+def error_vs_num_trees(ensemble_method, num_iter, attributes, training_data, test_data, **kwargs):
+    att_subset_size = kwargs.get("att_subset_size", -1)
     test_error_at_t = [0] * num_iter
     train_error_at_t = [0] * num_iter
 
-    #stumps
-    trees = create_ada_boosted_stumps(training_data, attributes, num_iter)
-    #bagged
-    #trees = bagged_trees_or_rand_forest(training_data, attributes, num_iter, -1)
+    trees_are_stumps = False
+    if ensemble_method is create_ada_boosted_stumps:
+        trees = create_ada_boosted_stumps(training_data, attributes, num_iter)
+        trees_are_stumps = True
+    else:
+        trees = bagged_trees_or_rand_forest(training_data, attributes, num_iter, att_subset_size)
 
     for num_trees in range(1, num_iter + 1):
         print(num_trees)
-        #stumps
-        train_error_at_t[num_trees - 1] = find_error_of_boosted_stumps(trees, num_trees, training_data, True)
-        test_error_at_t[num_trees - 1] = find_error_of_boosted_stumps(trees, num_trees, test_data, True)
+        if trees_are_stumps:
+            train_error_at_t[num_trees - 1] = find_error_of_boosted_trees(trees, num_trees, training_data, True)
+            test_error_at_t[num_trees - 1] = find_error_of_boosted_trees(trees, num_trees, test_data, True)
+        else:
+            train_error_at_t[num_trees - 1] = find_error_of_boosted_trees(trees, num_trees, training_data, False)
+            test_error_at_t[num_trees - 1] = find_error_of_boosted_trees(trees, num_trees, test_data, False)
 
-        #bagged
-        #trees = bagged_trees_or_rand_forest(training_data, attributes, num_trees, -1)
-        # train_error_at_t[num_trees - 1] = find_error_of_boosted_stumps(trees, num_trees, training_data, False)
-        # test_error_at_t[num_trees - 1] = find_error_of_boosted_stumps(trees, num_trees, test_data, False)
-
-    x = [i for i in range(1, num_iter + 1)]
-    #stumps
-    make_figure(x, train_error_at_t, test_error_at_t, "Ada Boosted Stumps", "Number of Stumps", "Error", "HW2stumps")
-    #bagged
-    #make_figure(x, train_error_at_t, test_error_at_t, "Bagged Decision Trees", "Number of Trees", "Error", "HW2test")
+    return train_error_at_t, test_error_at_t
 
 
 def make_figure(x, y1, y2, graph_title, x_label, y_label, picture_name):
@@ -62,8 +59,8 @@ def make_figure(x, y1, y2, graph_title, x_label, y_label, picture_name):
     plt.xlabel(x_label)
     plt.ylabel(y_label)
     plt.legend(loc='upper right')
-    path = "/home/alex/MachineLearning/pics/"
-    fig.savefig(path + picture_name + '.png', dpi=100)
+    #path = "/home/alex/MachineLearning/pics/"
+    fig.savefig(picture_name + '.png', dpi=100)
     plt.show()
 
 
@@ -71,11 +68,10 @@ def update_and_normalize_weights(weights_of_samples, was_correctly_predicted, tr
     for x in range(len(weights_of_samples)):
         weights_of_samples[x] *= np.exp(-tree_say * was_correctly_predicted[x])
 
-    hi = np.sum(weights_of_samples)
     weights_of_samples /= np.sum(weights_of_samples)
 
 
-def find_error_of_boosted_stumps(trees, num_trees, test_data, are_stumps):
+def find_error_of_boosted_trees(trees, num_trees, test_data, are_stumps):
     sum_correct = 0
     for sample in test_data:
         sum_vote = 0
@@ -115,8 +111,6 @@ def bagged_trees_or_rand_forest(data, attributes, num_trees, att_subset_size):
 if __name__ == "__main__":
     attributes, training_data, test_data = get_atts_and_test_and_training_data_from_file(
         "../DataSets/bank/data-desc-readable.txt", "../DataSets/bank/train.csv", "../DataSets/bank/test.csv")
-    #stumps = create_ada_boosted_stumps(training_data, attributes, 100)
-    #print(find_error_of_boosted_stumps(stumps, test_data, True))
-    #trees = bagged_trees_or_rand_forest(training_data, attributes, 20, True, 4)
-    #print(find_error_of_boosted_stumps(stumps, training_data, True))
-    error_vs_num_trees(1000, attributes, training_data, test_data)
+    train_err, test_err = error_vs_num_trees(bagged_trees_or_rand_forest, 10, attributes, training_data, test_data, att_subset_size=6)
+    print(train_err)
+    print(test_err)
